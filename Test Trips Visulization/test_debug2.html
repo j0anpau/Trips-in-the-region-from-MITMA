@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { margin:0; background:#08101e; color:lime; font-family:monospace; }
+  #map { width:100vw; height:60vh; }
+  #log { padding:10px; font-size:12px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="log">Cargando scripts...\n</div>
+
+<!-- Load scripts dynamically to test each CDN -->
+<script>
+const log = document.getElementById('log');
+function L(msg) { log.textContent += msg + '\n'; console.log(msg); }
+
+const cdns = [
+  'https://unpkg.com/deck.gl@9.0.0/dist.min.js',
+  'https://cdn.jsdelivr.net/npm/deck.gl@9.0.0/dist.min.js',
+  'https://unpkg.com/deck.gl@8.9.0/dist.min.js',
+  'https://cdn.jsdelivr.net/npm/deck.gl@8.9.35/dist.min.js',
+];
+
+async function tryLoad(url) {
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+async function main() {
+  for (const url of cdns) {
+    L('Probando: ' + url);
+    const ok = await tryLoad(url);
+    if (ok && typeof deck !== 'undefined') {
+      L('✓ CARGADO: ' + url);
+      L('deck.DeckGL: ' + (typeof deck.DeckGL));
+      L('deck.TripsLayer: ' + (typeof deck.TripsLayer));
+      runTest();
+      return;
+    } else {
+      L('✗ Falló o deck undefined');
+    }
+  }
+  L('\nNINGUN CDN FUNCIONA — ¿tienes conexión a internet?');
+}
+
+function runTest() {
+  try {
+    const d = new deck.DeckGL({
+      container: 'map',
+      initialViewState: { longitude: -2.18, latitude: 43.18, zoom: 9, pitch: 45 },
+      controller: true,
+      parameters: { clearColor: [0.03, 0.06, 0.12, 1] },
+      layers: []
+    });
+    L('DeckGL instanciado OK ✓');
+
+    let t = 0;
+    const testTrips = [
+      { path: [[-2.3,43.1],[-2.1,43.2],[-1.9,43.1]], timestamps: [0,500,1000] },
+      { path: [[-2.2,43.3],[-2.0,43.2],[-1.8,43.3]], timestamps: [200,600,1100] }
+    ];
+    function animate() {
+      t = (t + 8) % 1200;
+      d.setProps({ layers: [new deck.TripsLayer({
+        id: 'test', data: testTrips,
+        getPath: x => x.path, getTimestamps: x => x.timestamps,
+        getColor: [0,200,255], currentTime: t, trailLength: 400, widthMinPixels: 4
+      })]});
+      requestAnimationFrame(animate);
+    }
+    animate();
+    L('Animación corriendo — ¿ves líneas cyan?');
+  } catch(e) {
+    L('ERROR: ' + e.message);
+  }
+}
+
+main();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/deck.gl/9.0.0/dist.min.js"></script>
+<style>
+  body { margin:0; background:#08101e; color:lime; font-family:monospace; }
+  #map { width:100vw; height:60vh; }
+  #log { padding:10px; font-size:12px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="log">Iniciando diagnóstico...\n</div>
+<script>
+const log = document.getElementById('log');
+function L(msg) { log.textContent += msg + '\n'; console.log(msg); }
+
+L('1. deck global: ' + (typeof deck));
+L('2. deck.DeckGL: ' + (typeof deck?.DeckGL));
+L('3. deck.TripsLayer: ' + (typeof deck?.TripsLayer));
+L('4. deck.GeoJsonLayer: ' + (typeof deck?.GeoJsonLayer));
+
+try {
+  const d = new deck.DeckGL({
+    container: 'map',
+    initialViewState: { longitude: -2.18, latitude: 43.18, zoom: 9, pitch: 45 },
+    controller: true,
+    parameters: { clearColor: [0.03, 0.06, 0.12, 1] },
+    layers: []
+  });
+  L('5. DeckGL creado OK ✓');
+
+  // Test TripsLayer with 2 fake trips
+  const testTrips = [
+    { path: [[-2.3, 43.1], [-2.1, 43.2], [-1.9, 43.1]], timestamps: [0, 500, 1000] },
+    { path: [[-2.2, 43.3], [-2.0, 43.2], [-1.8, 43.3]], timestamps: [200, 600, 1100] }
+  ];
+
+  let t = 0;
+  function animate() {
+    t = (t + 5) % 1200;
+    d.setProps({
+      layers: [new deck.TripsLayer({
+        id: 'test',
+        data: testTrips,
+        getPath: d => d.path,
+        getTimestamps: d => d.timestamps,
+        getColor: [0, 200, 255],
+        currentTime: t,
+        trailLength: 300,
+        widthMinPixels: 3
+      })]
+    });
+    requestAnimationFrame(animate);
+  }
+  animate();
+  L('6. TripsLayer animando ✓ — ¿ves líneas cyan arriba?');
+
+} catch(e) {
+  L('ERROR: ' + e.message);
+  L('Stack: ' + e.stack);
+}
+
+// Test OSRM fetch
+L('\n7. Testeando OSRM fetch...');
+fetch('https://router.project-osrm.org/route/v1/driving/-2.1,43.2;-1.9,43.1?overview=full&geometries=geojson')
+  .then(r => r.json())
+  .then(d => L('8. OSRM OK ✓ — ruta con ' + d.routes[0].geometry.coordinates.length + ' puntos'))
+  .catch(e => L('8. OSRM ERROR: ' + e.message));
+</script>
+</body>
+</html>
